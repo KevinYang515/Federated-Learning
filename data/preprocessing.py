@@ -61,6 +61,7 @@ def preprocessing_for_testing(images):
 # Seperate data for each device
 def prepare_for_training_data0(device_num):
     # Return
+    data
     image, label = train_images, train_labels
     all_class_device = data_distribution[device_num]
 

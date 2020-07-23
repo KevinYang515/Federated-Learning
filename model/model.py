@@ -1,4 +1,9 @@
+# Define our model
 def define_model():
+    """
+    Define the architecture of our model from the paper of Google
+    :return model architecture 
+    """
     return tf.keras.Sequential([
         layers.Conv2D(64, (5, 5), padding='same', activation='relu', input_shape=(24, 24, 3)),
         layers.MaxPool2D(pool_size=3, strides=2, padding='same'),

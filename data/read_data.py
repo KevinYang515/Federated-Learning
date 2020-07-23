@@ -1,18 +1,22 @@
-with open('./mypaper/data_distribution_3000_new_14.txt', 'r') as rf:
-    device_information = rf.readlines()
-    
-with open('./mypaper/device_info_3000.txt', 'r') as rf:
-    device_information_detail = rf.readlines()
-
 # Read data from input file
-def read_data():
-    # It will preprocess the data format into the dictionary we want.
-    Return the information of 
+def read_data(data_distribution_file, data_information_file, num_class=10):
+    """
+    # It will preprocess the data in txt format into the dictionary we want.
+    :param source of txt file for device information (EMD (earth mover distance), data quantity of each class, variance)
+    :param source of txt file for device information (computing time, transmission time, data quantity)
+    :return dict of device information
+    """
+    with open(data_distribution_file, 'r') as rf:
+        device_information = rf.readlines()
+        
+    with open(data_information_file, 'r') as rf:
+        device_information_detail = rf.readlines()
 
     data_distribution = {}
     each_class = []
 
-    for i in range(10):
+    # In cifar10 dataset, there are 10 classes.
+    for i in range(num_class):
         each_class.append(0)
         
     for i in range(len(device_information)):
