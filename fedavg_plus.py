@@ -1,4 +1,5 @@
 # Modified fedavg for our input
+from __future__ import absolute_import, division, print_function, unicode_literals
 
 # Set Specific GPU in tensorflow
 # We can check GPU information with command ```nvidia-smi```.
@@ -10,16 +11,16 @@ import os
 os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 
 # Other import
-from __future__ import absolute_import, division, print_function, unicode_literals
-
+import sys
 import tensorflow as tf
 import numpy as np
 import matplotlib.pyplot as plt
 import cv2
 import random
-import data/preprocessing as prep
-import data/read_data
-import model/model
+import data.preprocessing as prep
+from data.read_data import read_data
+from data.data_utils import load_cifar10_data, train_test_label_to_categorical
+from model.model import define_model, init_compile
 
 from math import floor
 from sklearn.utils import shuffle
@@ -33,9 +34,10 @@ with K.tf.device('/device:GPU:0'):
     config = tf.ConfigProto()
     config.gpu_options.allow_growth = True
     sess = tf.Session(config=config)
+_, epo = 0, 0
 
 def step_decay(epoch):
-    epoch = round + epo
+    epoch = _ + epo
     # initial_lrate = 1.0 # no longer needed
     drop = 0.99
     epochs_drop = 1.0
@@ -44,8 +46,8 @@ def step_decay(epoch):
     return lrate
 
 def main(argv):
-    data_distribution_file = './mypaper/data_distribution_3000_new_14.txt'
-    data_information_file = './mypaper/device_info_3000.txt'
+    data_distribution_file = './data/file/data_distribution_3000_new_14.txt'
+    data_information_file = './data/file/device_info_3000.txt'
 
     # Read data from input file
     data_distribution = read_data(data_distribution_file, data_information_file)
@@ -54,29 +56,41 @@ def main(argv):
     # Transfer train and test label to be categorical
     train_label, test_label = train_test_label_to_categorical(train_labels, test_labels)
 
+    # adjust parameters of the model
+    callback = tf.keras.callbacks.LearningRateScheduler(step_decay)
+    
+    augment = ImageDataGenerator(preprocessing_function=prep.preprocessing_for_training)
+    history_02 = {}
+    # 30000
+    # device_list = [0, 20, 21, 22, 23, 27, 37, 65, 73, 81, 95, 98]
+
+    # 10000
+    device_list = [0, 20, 22, 23, 81]
+
+    new_device_info = {}
+
+    for x in device_list:
+        new_device_info[x] = data_distribution[x]
+
     num_device = 100
     num_center_epoch = 1
     num_local_epoch = 5
-    num_round = 200
+    num_round = 2
     center_batch_size = 64
     local_batch_size = 50
 
-    show = 1
+    show = 0
 
     # Define our model
     model_m = define_model()
-
-    model_m.compile(optimizer='sgd',
-            loss='categorical_crossentropy',
-            metrics=['accuracy'])
-
+    init_compile(model_m)
 
     #Initialization for all device's record
     history_m = {}
     for device in new_device_info:
         locals()['history_{}'.format(device)] = {}
 
-    test_d = np.stack([preprocessing_for_testing(test_images[i]) for i in range(10000)], axis=0)
+    test_d = np.stack([prep.preprocessing_for_testing(test_images[i]) for i in range(10000)], axis=0)
     history_temp = model_m.evaluate(test_d, test_label, batch_size=64)
 
     # try and error history_m
@@ -90,21 +104,21 @@ def main(argv):
 
             if(_ == 0):
                 #Define and initialize an estimator model
-                init_define(locals()['model_{}'.format(device)])
-
+                locals()['model_{}'.format(device)] = define_model()
+                init_compile(locals()['model_{}'.format(device)])
+                
             #Broadcast to every device (e.g., model_m parameters to all devices)
             for layer in range(len(model_m.layers)):
                 locals()['model_{}'.format(device)].layers[layer].set_weights(model_m.layers[layer].get_weights())
 
-
             #Local training on each device 
             for epo in range(num_local_epoch):
                 print("Epoch:", epo)
-                train_image_temp, train_label_temp = prepare_for_training_data0(device)
-                train_image_crop = np.stack([random_crop(train_image_temp[i], 24, 24) for i in range(len(train_image_temp))], axis=0)
+                train_image_temp, train_label_temp = prep.prepare_for_training_data0(train_images, train_labels, data_distribution, device)
+                train_image_crop = np.stack([prep.random_crop(train_image_temp[i], 24, 24) for i in range(len(train_image_temp))], axis=0)
 
-                test_image_temp, test_label_temp = prepare_for_testing_data(device)
-                test_image_crop = np.stack([preprocessing_for_testing(test_image_temp[i]) for i in range(len(test_image_temp))], axis=0)
+                test_image_temp, test_label_temp = prep.prepare_for_testing_data(test_images, test_labels, device, len(new_device_info))
+                test_image_crop = np.stack([prep.preprocessing_for_testing(test_image_temp[i]) for i in range(len(test_image_temp))], axis=0)
 
                 train_new_image, train_new_label = shuffle(train_image_crop, 
                                                         train_label_temp, 
@@ -153,7 +167,7 @@ def main(argv):
                                                     model_0.layers[layer].get_weights()))
         print("Result : " + str(_))
         #Evaluate with new weight
-        test_d = np.stack([preprocessing_for_testing(test_images[i]) for i in range(10000)], axis=0)
+        test_d = np.stack([prep.preprocessing_for_testing(test_images[i]) for i in range(10000)], axis=0)
         test_new_image, test_new_label = shuffle(test_d, test_label, 
                                                 random_state=randint(1, train_images.shape[0]))
         
@@ -164,4 +178,4 @@ def main(argv):
         history_02['val_acc'].append(history_temp[1])
 
 if __name__ == '__main__':
-    app.run(main)
+    main(sys.argv)

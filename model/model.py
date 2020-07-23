@@ -1,3 +1,6 @@
+import tensorflow as tf
+from tensorflow.keras import layers, models
+
 # Define our model
 def define_model():
     """
@@ -18,3 +21,8 @@ def define_model():
         layers.Dropout(0.5),
         layers.Dense(10, activation='softmax')
     ])
+
+def init_compile(model_x):
+    model_x.compile(optimizer='sgd',
+            loss='categorical_crossentropy',
+            metrics=['accuracy'])

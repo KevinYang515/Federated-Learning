@@ -1,3 +1,5 @@
+from model import define_model
+
 def init_define(model_x):
     model_x = define_model()
 

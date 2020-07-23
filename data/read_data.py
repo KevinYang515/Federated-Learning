@@ -1,7 +1,7 @@
 # Read data from input file
 def read_data(data_distribution_file, data_information_file, num_class=10):
     """
-    # It will preprocess the data in txt format into the dictionary we want.
+    It will preprocess the data in txt format into the dictionary we want.
     :param source of txt file for device information (EMD (earth mover distance), data quantity of each class, variance)
     :param source of txt file for device information (computing time, transmission time, data quantity)
     :return dict of device information

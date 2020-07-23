@@ -59,14 +59,13 @@ def preprocessing_for_testing(images):
     return distorted_image
 
 # Seperate data for each device
-def prepare_for_training_data0(device_num):
+def prepare_for_training_data0(train_images, train_labels, data_distribution, device_num, num_class=10, quantity_of_each_class=5000):
     # Return
-    data
     image, label = train_images, train_labels
     all_class_device = data_distribution[device_num]
 
-    device_num_start = data_distribution[device_num]['data_distribution'][0][0] % 5000
-    device_num_end = data_distribution[device_num]['data_distribution'][0][1] % 5000
+    device_num_start = data_distribution[device_num]['data_distribution'][0][0] % quantity_of_each_class
+    device_num_end = data_distribution[device_num]['data_distribution'][0][1] % quantity_of_each_class
 
     if device_num_start > device_num_end: 
         a = image[label[:, 0] == 0][device_num_start:]
@@ -78,7 +77,7 @@ def prepare_for_training_data0(device_num):
     else:
         s0 = [image[label[:, 0] == 0][device_num_start : device_num_end], label[label[:, 0] == 0][device_num_start : device_num_end]]
 
-    for i in range(1, 10):
+    for i in range(1, num_class):
         device_num_start = data_distribution[device_num]['data_distribution'][0][0] % 5000
         device_num_end = data_distribution[device_num]['data_distribution'][0][1] % 5000
 
@@ -117,8 +116,8 @@ def prepare_for_training_data(device_num, train_images, train_labels, num_device
     
     return s0[0], to_categorical(s0[1])
 
-def prepare_for_testing_data(device_num, test_images, test_labels, num_device):
-    num_data = int(len(test_images)/num_device/10)
+def prepare_for_testing_data(test_images, test_labels, device_num, num_device, num_class=10):
+    num_data = int(len(test_images)/num_device/num_class)
     device_num = device_num * num_data
 
     image, label = test_images, test_labels
@@ -126,7 +125,7 @@ def prepare_for_testing_data(device_num, test_images, test_labels, num_device):
     
     s0 = [image[label[:, 0] == 0][device_num : device_num+num_data], label[label[:, 0] == 0][device_num : device_num+num_data]]
 
-    for i in range(1, 10):
+    for i in range(1, num_class):
         s1 = [image[label[:, 0] == i][device_num : device_num+num_data], label[label[:, 0] == i][device_num : device_num+num_data]]
 
         s0 = [np.concatenate((s0[0], s1[0]), axis=0), np.append(s0[1], s1[1])]
