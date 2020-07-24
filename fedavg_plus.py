@@ -20,7 +20,7 @@ import random
 import data.preprocessing as prep
 from data.read_data import read_data
 from data.data_utils import load_cifar10_data, train_test_label_to_categorical
-from model.model import define_model, init_compile, init_model, record_history
+from model.model import init_model, record_history
 from model.operation import broadcast_to_device, caculate_delta, aggregate_add, aggregate_division_return 
 
 from math import floor
@@ -118,7 +118,7 @@ def main(argv):
             aggregate_add(locals()['model_{}'.format(device)], locals()['model_{}'.format(device_list[0])])
 
         #Aggregate all delta weight on device 0 (Division) and return total delta weight to center device
-        aggregate_division_return(locals()['model_{}'.format(device_list[0])], model_m, len(new_device_info))
+        aggregate_division_return(locals()['model_{}'.format(device_list[0])], model_m, len(device_list))
 
         print("Result : " + str(_))
         #Evaluate with new weight
