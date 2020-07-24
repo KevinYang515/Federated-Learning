@@ -84,7 +84,6 @@ def main(argv):
     # Define our model
     model_m, history_total = init_model(True)
 
-    device_set = [x for x in new_device_info]
     for _ in range(num_round):
         print("\n" + "\033[1m" + "Round: " + str(_))
         for device in new_device_info:
@@ -115,11 +114,11 @@ def main(argv):
             caculate_delta(locals()['model_{}'.format(device)], model_m)
 
         #Aggregate all delta weight on device 0 (Addition)
-        for device in device_set[1:]:
-            aggregate_add(locals()['model_{}'.format(device)], locals()['model_{}'.format(device_set[0])])
+        for device in device_list[1:]:
+            aggregate_add(locals()['model_{}'.format(device)], locals()['model_{}'.format(device_list[0])])
 
         #Aggregate all delta weight on device 0 (Division) and return total delta weight to center device
-        aggregate_division_return(locals()['model_{}'.format(device_set[0])], model_m, len(new_device_info))
+        aggregate_division_return(locals()['model_{}'.format(device_list[0])], model_m, len(new_device_info))
 
         print("Result : " + str(_))
         #Evaluate with new weight
