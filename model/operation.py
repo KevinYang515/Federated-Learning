@@ -47,6 +47,7 @@ def aggregate_division(model_0, num_device, layer):
     :param the temp model (device 0) which just stored all the clients' weights
     :param number of devices which is divisor
     :param what layer is now
+    :return the divided result in this layer
     """
     return np.divide(model_0.layers[layer].get_weights(), num_device)
 
