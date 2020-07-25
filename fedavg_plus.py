@@ -14,11 +14,10 @@ os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 import sys
 import tensorflow as tf
 import numpy as np
-import matplotlib.pyplot as plt
 import cv2
 import random
 import data.preprocessing as prep
-from data.read_data import read_data
+from data.read_data import read_data, read_setting
 from data.data_utils import load_cifar10_data, train_test_label_to_categorical
 from model.model import init_model, record_history
 from model.operation import broadcast_to_device, caculate_delta, aggregate_add, aggregate_division_return 
@@ -46,11 +45,10 @@ def step_decay(epoch):
     return lrate
 
 def main(argv):
-    data_distribution_file = './data/file/data_distribution_3000_new_14.txt'
-    data_information_file = './data/file/device_info_3000.txt'
-
+    # Read detailed settings from json file
+    detailed_setting = read_setting()
     # Read data from input file
-    data_distribution = read_data(data_distribution_file, data_information_file)
+    data_distribution = read_data(detailed_setting["file_source"]["data_distribution_file"], detailed_setting["file_source"]["data_information_file"])
     # Load CIFAR-10 data
     train_images, train_labels, test_images, test_labels = load_cifar10_data()
     # Transfer train and test label to be categorical
@@ -58,33 +56,22 @@ def main(argv):
 
     # adjust parameters of the model
     callback = tf.keras.callbacks.LearningRateScheduler(step_decay)
-
+    # define the method for preprocessing
     augment = ImageDataGenerator(preprocessing_function=prep.preprocessing_for_training)
-    # history_total = {}
-    # 30000
-    # device_list = [0, 20, 21, 22, 23, 27, 37, 65, 73, 81, 95, 98]
-
-    # 10000
-    device_list = [0, 20, 22, 23, 81]
+    
+    # device list for demand 10000
+    device_list = detailed_setting["device_list"]["10000"]
 
     new_device_info = {}
-
     for x in device_list:
         new_device_info[x] = data_distribution[x]
 
-    num_device = 100
-    num_center_epoch = 1
-    num_local_epoch = 5
-    num_round = 100
-    center_batch_size = 64
-    local_batch_size = 50
-
-    show = 0
+    training_info = detailed_setting["training_info"]
 
     # Define our model
     model_m, history_total = init_model(True)
 
-    for _ in range(num_round):
+    for _ in range(training_info["num_round"]):
         print("\n" + "\033[1m" + "Round: " + str(_))
         for device in new_device_info:
             print("\033[0m" + "Device:", device, "model_" + str(device))
@@ -97,7 +84,7 @@ def main(argv):
                 broadcast_to_device(locals()['model_{}'.format(device)], model_m)
 
             #Local training on each device 
-            for epo in range(num_local_epoch):
+            for epo in range(training_info["num_local_epoch"]):
                 train_image_temp, train_label_temp = prep.prepare_for_training_data0(train_images, train_labels, data_distribution, device)
                 train_image_crop = np.stack([prep.random_crop(train_image_temp[i], 24, 24) for i in range(len(train_image_temp))], axis=0)
                 train_new_image, train_new_label = shuffle(train_image_crop, 
@@ -105,10 +92,10 @@ def main(argv):
                                                         random_state=randint(0, train_image_crop.shape[0]))
 
                 history_temp = locals()['model_{}'.format(device)].fit_generator(
-                    augment.flow(train_new_image, train_new_label, batch_size=local_batch_size), 
+                    augment.flow(train_new_image, train_new_label, batch_size=training_info["local_batch_size"]),
                     epochs=1, 
                     callbacks=[callback],
-                    verbose=show)
+                    verbose=training_info["show"])
 
             #Calculate delta weight on each device
             caculate_delta(locals()['model_{}'.format(device)], model_m)
@@ -130,6 +117,12 @@ def main(argv):
 
         #Record each round accuracy
         record_history(history_temp, history_total)
-    
+
+    print("===============Finish===============")
+    print("Accuracy: ")
+    print(history_total["val_acc"])
+    print("Loss: ")
+    print(history_total["val_loss"])
+
 if __name__ == '__main__':
     main(sys.argv)

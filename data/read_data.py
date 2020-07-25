@@ -1,3 +1,5 @@
+import json
+
 # Read data from input file
 def read_data(data_distribution_file, data_information_file, num_class=10):
     """
@@ -39,3 +41,13 @@ def read_data(data_distribution_file, data_information_file, num_class=10):
         data_distribution[i]['data_distribution'] = temp
 
     return data_distribution
+
+def read_setting():
+    """
+    Read detailed settings into dictionary
+    :return dictionary which contains file source, device list, and training information
+    """
+    with open('data/detailed_settings.json' , 'r') as reader:
+        json_result = json.loads(reader.read())
+        
+    return json_result
