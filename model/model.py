@@ -95,6 +95,10 @@ def training_once(model_x, train_new_image, train_new_label, training_info, augm
     return history_temp
 
 def print_result_for_fed(history_total):
+    """
+    Print the final result containing accuracy and loss from history
+    :param dictionary storing historical accuracy and loss
+    """
     print("\n================================== Finish ==================================")
     print("Accuracy: ")
     print(history_total["val_acc"])
