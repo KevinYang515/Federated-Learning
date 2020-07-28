@@ -174,21 +174,36 @@ def prepare_for_training_data(device_num, train_images, train_labels, num_device
 def evaluate_with_new_model(round, training_info, model_x, test_images, test_label):
     """
     It will evaluate the new model weight which is aggregrated from all client model.
+    :param what round is now
+    :param dictionary contains training detailed settings
+    :param the model for evaluation
+    :param original images for testing
+    :param original labels for testing
+    :return the evaluation result of the input model
     """
-    print("Result : " + str(round))
     # Prepare for images and labels for evaluating new model weight
     test_new_image, test_new_label = prepare_for_evaluate(test_images, test_label)
     # Evaluate with new weight
     history_temp = model_x.evaluate(test_new_image, 
                                     test_new_label, 
-                                    batch_size=training_info["center_batch_size"])
+                                    batch_size=training_info["center_batch_size"],
+                                    verbose=training_info["show"])
+    print("\nRound", str(round), "\nAccuracy:", str(history_temp[0]) + ", Loss:", str(history_temp[1]))
 
     return history_temp
 
 def prepare_for_evaluate(test_images, test_label):
+    """
+    It will preprocess and return the images and labels for tesing.
+    :param original images for testing
+    :param original labels for testing
+    :return preprocessed images
+    :return preprocessed labels
+    """
     test_d = np.stack([preprocessing_for_testing(test_images[i]) for i in range(10000)], axis=0)
     test_new_image, test_new_label = test_d, test_label
     
+    # Shuffle for 20 times
     for time in range(20):
         test_new_image, test_new_label = shuffle(test_d, test_label, 
                                             random_state=randint(0, test_images.shape[0]))
