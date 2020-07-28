@@ -13,17 +13,13 @@ os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 # Other import
 import sys
 import tensorflow as tf
-import numpy as np
-import random
-from data.preprocessing import preprocessing_for_training, preprocessing_for_testing, separate_and_preprocess_for_fed, evaluate_with_new_model
+from data.preprocessing import preprocessing_for_training, separate_and_preprocess_for_fed, evaluate_with_new_model
 from data.read_data import read_data, read_setting
 from data.data_utils import load_cifar10_data, train_test_label_to_categorical
-from model.model import init_model, broadcast_device, record_history, training_once, print_result_for_fed
+from model.model import init_model, record_history, training_once, print_result_for_fed
 from model.operation import broadcast_to_device, caculate_delta, aggregate_add, aggregate_division_return 
 
 from math import floor
-from sklearn.utils import shuffle
-from random import randint
 from keras import backend as K
 from keras.preprocessing.image import ImageDataGenerator
 
@@ -53,12 +49,12 @@ def main(argv):
     # Transfer train and test label to be categorical
     train_label, test_label = train_test_label_to_categorical(train_labels, test_labels)
 
-    # adjust parameters of the model
+    # Adjust parameters of the model
     callback = tf.keras.callbacks.LearningRateScheduler(step_decay)
-    # define the method for preprocessing
+    # Define the method for preprocessing
     augment = ImageDataGenerator(preprocessing_function=preprocessing_for_training)
     
-    # device list for demand 10000
+    # Device list for demand 10000
     device_list = detailed_setting["device_list"]["10000"]
 
     new_device_info = {}
@@ -101,7 +97,7 @@ def main(argv):
         # Evaluate with new weight
         history_temp = evaluate_with_new_model(_, training_info, model_m, test_images, test_label)
 
-        #Record each round accuracy
+        # Record each round accuracy
         record_history(history_temp, history_total)
 
     print_result_for_fed(history_total)
