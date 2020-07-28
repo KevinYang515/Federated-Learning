@@ -14,12 +14,11 @@ os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 import sys
 import tensorflow as tf
 import numpy as np
-import cv2
 import random
-import data.preprocessing as prep
+from data.preprocessing import preprocessing_for_training, preprocessing_for_testing, separate_and_preprocess_for_fed, evaluate_with_new_model
 from data.read_data import read_data, read_setting
 from data.data_utils import load_cifar10_data, train_test_label_to_categorical
-from model.model import init_model, record_history
+from model.model import init_model, broadcast_device, record_history, training_once, print_result_for_fed
 from model.operation import broadcast_to_device, caculate_delta, aggregate_add, aggregate_division_return 
 
 from math import floor
@@ -57,7 +56,7 @@ def main(argv):
     # adjust parameters of the model
     callback = tf.keras.callbacks.LearningRateScheduler(step_decay)
     # define the method for preprocessing
-    augment = ImageDataGenerator(preprocessing_function=prep.preprocessing_for_training)
+    augment = ImageDataGenerator(preprocessing_function=preprocessing_for_training)
     
     # device list for demand 10000
     device_list = detailed_setting["device_list"]["10000"]
@@ -69,60 +68,43 @@ def main(argv):
     training_info = detailed_setting["training_info"]
 
     # Define our model
-    model_m, history_total = init_model(True)
+    is_master = True 
+    model_m, history_total = init_model(is_master)
 
     for _ in range(training_info["num_round"]):
         print("\n" + "\033[1m" + "Round: " + str(_))
         for device in new_device_info:
             print("\033[0m" + "Device:", device, "model_" + str(device))
-
+            is_master = False
             if (_ == 0):
-                #Define and initialize an estimator model
-                locals()['model_{}'.format(device)] = init_model(False)
+                # Define and initialize an estimator model
+                locals()['model_{}'.format(device)] = init_model(is_master)
             else:
-                #Broadcast to every device (e.g., model_m parameters to all devices)
+                # Broadcast to every device (e.g., model_m parameters to all devices)
                 broadcast_to_device(locals()['model_{}'.format(device)], model_m)
 
-            #Local training on each device 
+            # Local training on each device 
             for epo in range(training_info["num_local_epoch"]):
-                train_image_temp, train_label_temp = prep.prepare_for_training_data0(train_images, train_labels, data_distribution, device)
-                train_image_crop = np.stack([prep.random_crop(train_image_temp[i], 24, 24) for i in range(len(train_image_temp))], axis=0)
-                train_new_image, train_new_label = shuffle(train_image_crop, 
-                                                        train_label_temp, 
-                                                        random_state=randint(0, train_image_crop.shape[0]))
+                train_new_image, train_new_label = separate_and_preprocess_for_fed(train_images, train_labels, data_distribution, device)
+                history_temp = training_once(locals()['model_{}'.format(device)], train_new_image, train_new_label, training_info, augment, callback)
 
-                history_temp = locals()['model_{}'.format(device)].fit_generator(
-                    augment.flow(train_new_image, train_new_label, batch_size=training_info["local_batch_size"]),
-                    epochs=1, 
-                    callbacks=[callback],
-                    verbose=training_info["show"])
-
-            #Calculate delta weight on each device
+            # Calculate delta weight on each device
             caculate_delta(locals()['model_{}'.format(device)], model_m)
 
-        #Aggregate all delta weight on device 0 (Addition)
+        # Aggregate all delta weight on device 0 (Addition)
         for device in device_list[1:]:
             aggregate_add(locals()['model_{}'.format(device)], locals()['model_{}'.format(device_list[0])])
 
-        #Aggregate all delta weight on device 0 (Division) and return total delta weight to center device
+        # Aggregate all delta weight on device 0 (Division) and return total delta weight to center device
         aggregate_division_return(locals()['model_{}'.format(device_list[0])], model_m, len(device_list))
 
-        print("Result : " + str(_))
-        #Evaluate with new weight
-        test_d = np.stack([prep.preprocessing_for_testing(test_images[i]) for i in range(10000)], axis=0)
-        test_new_image, test_new_label = shuffle(test_d, test_label, 
-                                                random_state=randint(1, train_images.shape[0]))
-
-        history_temp = model_m.evaluate(test_new_image, test_new_label, batch_size=64)
+        # Evaluate with new weight
+        history_temp = evaluate_with_new_model(_, training_info, model_m, test_images, test_label)
 
         #Record each round accuracy
         record_history(history_temp, history_total)
 
-    print("===============Finish===============")
-    print("Accuracy: ")
-    print(history_total["val_acc"])
-    print("Loss: ")
-    print(history_total["val_loss"])
+    print_result_for_fed(history_total)
 
 if __name__ == '__main__':
     main(sys.argv)

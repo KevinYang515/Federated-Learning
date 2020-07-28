@@ -9,7 +9,7 @@
     },
     "training_info": {
         "num_device": 100, 
-        "num_center_epoch": 1, 
+        "num_center_epoch": 1,
         "num_local_epoch": 5,
         "num_round": 3,
         "center_batch_size": 64,

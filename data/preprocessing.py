@@ -75,6 +75,11 @@ def random_flip_left_right(image):
     return image
 
 def preprocessing_for_training(images):
+    """
+    It will preprocess the input image for training.
+    :param image for training to be proprecessed in each epoch
+    :return proprecessed image for training
+    """
     distorted_image = random_flip_left_right(images)
     distorted_image = random_bright(distorted_image)
     distorted_image = random_contrast(distorted_image)
@@ -87,6 +92,26 @@ def preprocessing_for_testing(images):
     distorted_image = per_image_standardization(distorted_image)
     
     return distorted_image
+
+def separate_and_preprocess_for_fed(train_images, train_labels, data_distribution, device):
+    """
+    It will seperate and preprocess (i.e., randomly crop each image for training) 
+    the training images for the target device.
+    :param training images to be seperated to the target device
+    :param training labels to be seperated to the target device
+    :param data distribution for all devices
+    :param device number which means which device data to be seperated and preprocessed 
+    :return the target device data (i.e., training data, training labels) have been seperated and preprocessed
+    """
+    train_image_temp, train_label_temp = prepare_for_training_data0(train_images, train_labels, data_distribution, device)
+    train_image_crop = np.stack([random_crop(train_image_temp[i], 24, 24) for i in range(len(train_image_temp))], axis=0)
+    
+    # Shuffle for 20 times
+    for random in range(20):
+        train_image_crop, train_label_temp = shuffle(train_image_crop, 
+                                            train_label_temp, 
+                                            random_state=randint(0, train_image_crop.shape[0]))
+    return train_image_crop, train_label_temp
 
 # Seperate data for each device
 def prepare_for_training_data0(train_images, train_labels, data_distribution, device_num, num_class=10, quantity_of_each_class=5000):
@@ -145,6 +170,31 @@ def prepare_for_training_data(device_num, train_images, train_labels, num_device
     s0[0], s0[1] = shuffle(s0[0], s0[1], random_state=randint(0, device_num))
     
     return s0[0], to_categorical(s0[1])
+
+def evaluate_with_new_model(round, training_info, model_x, test_images, test_label):
+    """
+    It will evaluate the new model weight which is aggregrated from all client model.
+    """
+    print("Result : " + str(round))
+    # Prepare for images and labels for evaluating new model weight
+    test_new_image, test_new_label = prepare_for_evaluate(test_images, test_label)
+    # Evaluate with new weight
+    history_temp = model_x.evaluate(test_new_image, 
+                                    test_new_label, 
+                                    batch_size=training_info["center_batch_size"])
+
+    return history_temp
+
+def prepare_for_evaluate(test_images, test_label):
+    test_d = np.stack([preprocessing_for_testing(test_images[i]) for i in range(10000)], axis=0)
+    test_new_image, test_new_label = test_d, test_label
+    
+    for time in range(20):
+        test_new_image, test_new_label = shuffle(test_d, test_label, 
+                                            random_state=randint(0, test_images.shape[0]))
+    return test_new_image, test_new_label
+
+    
 
 def prepare_for_testing_data(test_images, test_labels, device_num, num_device, num_class=10):
     num_data = int(len(test_images)/num_device/num_class)
